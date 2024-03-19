@@ -1708,7 +1708,7 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
             segmentationFileName = imageData.getSegmentationFileName()
             print(f'segmentation file name: {segmentationFileName}')
             img_blob = self.imageDataController.reuqestSegmentation(image_id, tag)
-            
+            print(f'segmentation temp dir: {self.temp_dir.name}')
             destination_seg = self.storeSegmentation(img_blob, segmentationFileName, self.temp_dir.name)
             print(destination_seg)
             self.displaySegmention(destination_seg)
@@ -1716,7 +1716,9 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
             logging.info(f"{self.getCurrentTime()}: Removed file at {destination_seg}")
 
             landmarkFileName = f'{segmentationFileName.split("_")[0]}_OSTIUM.mrk.json'
+            print(f'landmark file name: {segmentationFileName}')
             img_blob = self.imageDataController.requestPointList(landmarkFileName, tag)
+            print(f'landmark temp dir: {self.temp_dir.name}')
             destination_point = self.storeSegmentation(img_blob, landmarkFileName, self.temp_dir.name)
             print(destination_point)
             self.displayLandmarks(destination_point)
@@ -1769,6 +1771,7 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
         displayNode.SetOpacity2DOutline(1)
 
         segmentation.CreateClosedSurfaceRepresentation()
+        slicer.util.resetThreeDViews()
 
     def displayLandmarks(self, destination: str):
         landmarks = slicer.util.loadMarkups(destination)
