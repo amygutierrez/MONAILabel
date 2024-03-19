@@ -233,9 +233,21 @@ class ImageDataController:
             )
         )
         return img_blob
+    
+    def requestPointList(self, image_id: str, tag: str) -> requests.models.Response:
+        print(image_id)
+        print(tag)
+        img_blob = self.monaiServerREST.requestPointList(image_id, tag)
+        logging.info(
+            "{}: Segmentation successfully requested from MONAIServer (image id: {})".format(
+                self.getCurrentTime(), image_id
+            )
+        )
+        return img_blob
 
     def getDicomDownloadUri(self, image_id: str) -> str:
         return self.monaiServerREST.getDicomDownloadUri(image_id)
+    
 
     def saveLabelInMonaiServer(self, image_in: str, label_in: str, tag: str, params: Dict):
         self.monaiServerREST.saveLabel(image_in, label_in, tag, params)

@@ -57,14 +57,48 @@ class MonaiServerREST:
         logging.info(f"{self.getCurrentTime()}: REST: request dicom image '{download_uri}'")
         return download_uri
 
-    def requestSegmentation(self, image_id: str, tag: str) -> requests.models.Response:
-        if tag == "":
-            tag = "final"
+    def requestPointList(self, image_id: str, tag: str) -> requests.models.Response:
+        # if tag == "":
+        print(tag)
+        tag = "landmarks"
         download_uri = f"{self.serverUrl}/datastore/label?label={quote_plus(image_id)}&tag={quote_plus(tag)}"
+        print(f'point list download_uri: {download_uri}')
         logging.info(f"{self.getCurrentTime()}: REST: request segmentation '{download_uri}'")
 
         try:
+            print(f'trying pointlist request')
             response = requests.get(download_uri, timeout=5)
+            print(f'pointlist response: {response}')
+        except Exception as exception:
+            logging.warning(
+                "{}: Segmentation request (image id: '{}') failed due to '{}'".format(
+                    self.getCurrentTime(), image_id, exception
+                )
+            )
+            return None
+        if response.status_code != 200:
+            logging.warn(
+                "{}: Segmentation request (image id: '{}') failed due to response code: '{}'".format(
+                    self.getCurrentTime(), image_id, response.status_code
+                )
+            )
+            return None
+
+        return response
+    
+    
+    def requestSegmentation(self, image_id: str, tag: str) -> requests.models.Response:
+        if tag == "":
+            tag = 'final'
+        #tag = "final-corrected"
+        download_uri = f"{self.serverUrl}/datastore/label?label={quote_plus(image_id)}&tag={quote_plus(tag)}"
+        print(f'segmentation download_uri: {download_uri}')
+        logging.info(f"{self.getCurrentTime()}: REST: request segmentation '{download_uri}'")
+
+        try:
+            print(f'trying seg request')
+            response = requests.get(download_uri, timeout=5)
+            print(f'seg response: {response}')
         except Exception as exception:
             logging.warning(
                 "{}: Segmentation request (image id: '{}') failed due to '{}'".format(

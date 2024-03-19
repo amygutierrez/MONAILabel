@@ -129,6 +129,7 @@ class MONAILabelReviewerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # set segmentator editor
         self.segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
+        # self.landmarkEditorWidget = 
         self.addSegmentator()
         self.setLightVersion()
 
@@ -238,8 +239,9 @@ class MONAILabelReviewerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.loadNextImage(imageData=self.currentImageData, tag=self.getCurrentLabelVersion())
 
     def getCurrentLabelVersionFromComboBox(self) -> str:
-        labelString = self.ui.comboBox_label_version.currentText
-        return self.parseSelectedVersionFromComboBox(labelString)
+        # labelString = self.ui.comboBox_label_version.currentText
+        # return self.parseSelectedVersionFromComboBox(labelString)
+        return "final"
 
     def getCurrentLabelVersion(self) -> str:
         label = self.getCurrentLabelVersionFromComboBox()
@@ -1240,13 +1242,17 @@ class MONAILabelReviewerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
                                 which is required for rest request to monai server
                                 in order to get dicom and segmenation (.nrrd).
         """
+        print(f"starting load next image, tag: {tag}")
         slicer.mrmlScene.Clear()
         self.clearInformationFields()
 
         if tag == "":
             tag = self.currentImageData.getApprovedVersionTagElseReturnLatestVersion()
+            print(f"{tag} = getapprovedversion")
         if tag == "":
             tag = self.getCurrentLabelVersion()
+            print(f"{tag} = getapprovedversion")
+        print(f"2. starting load next image, tag: {tag}")
         logging.warn(f"{self.getCurrentTime()} Loading image (id='{imageData.getName()}', tag='{tag}')")
         self.disableDifficultyButtons(tag=tag)
         self.displayImageMetaData(imageData, tag)
@@ -1440,7 +1446,21 @@ class MONAILabelReviewerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.tmpdir = slicer.util.tempDirectory("slicer-monai-reviewer")
         label_in = tempfile.NamedTemporaryFile(suffix=".nrrd", dir=self.tmpdir).name
         slicer.util.saveNode(segmentationNode, label_in)
+        self.logic.saveLabelInMonaiServer(imageData=self.currentImageData, label_in=label_in, tag=newVersionName)
 
+    def persistEditedPointList(self, newVersionName: str):
+        # self.currentImageData.updateSegmentationMetaByVerionTag(
+        #     tag=newVersionName,
+        #     status=self.getCurrentMetaStatus(),
+        #     level=self.getCurrentMetaLevel(),
+        #     approvedBy=self.selectedReviewer,
+        #     comment=self.getCurrentComment(),
+        # )
+
+        landmarkNode = self.segmentEditorWidget.segmentationNode()
+        self.tmpdir = slicer.util.tempDirectory("slicer-monai-reviewer")
+        label_in = tempfile.NamedTemporaryFile(suffix=".nrrd", dir=self.tmpdir).name
+        slicer.util.saveNode(landmarkNode, label_in)
         self.logic.saveLabelInMonaiServer(imageData=self.currentImageData, label_in=label_in, tag=newVersionName)
 
     def deleteLabelByVersionTag(self):
@@ -1485,9 +1505,12 @@ class MONAILabelReviewerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.setVersionTagInComboBox(versionTag=newLabelNameCreated)
 
     def reloadImageAfterEditingLabel(self):
+        print("doing reloadImageAfterEditingLabel")
         imageId = self.currentImageData.getFileName()
         latestVersion = self.currentImageData.getLatestVersionTag()
         logging.info(f"{self.getCurrentTime()}: Loading image (id='{imageId}') with version tag = '{latestVersion}'")
+        print(f"{self.getCurrentTime()}: Loading image (id='{imageId}') with version tag = '{latestVersion}'")
+        print(f'curentImageData: {self.currentImageData}')
         self.loadNextImage(imageData=self.currentImageData, tag=latestVersion)
         self.fillComboBoxLabelVersions(self.currentImageData)
 
@@ -1666,6 +1689,10 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
         image_name = imageData.getFileName()
         image_id = imageData.getName()
         node_name = imageData.getNodeName()
+        print(f'tag: {tag}')
+        print(f'image_name: {image_name}')
+        print(f'image_id: {image_id}')
+        print(f'node_name: {node_name}')
         logging.info(
             "{}: Request Data  image_name='{}', node_name='{}', image_id='{}'".format(
                 self.getCurrentTime(), image_name, node_name, image_id
@@ -1677,12 +1704,33 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
 
         # Request segmentation
         if imageData.isSegemented():
+            print('segmentation')
             segmentationFileName = imageData.getSegmentationFileName()
+            print(f'segmentation file name: {segmentationFileName}')
             img_blob = self.imageDataController.reuqestSegmentation(image_id, tag)
-            destination = self.storeSegmentation(img_blob, segmentationFileName, self.temp_dir.name)
-            self.displaySegmention(destination)
-            os.remove(destination)
-            logging.info(f"{self.getCurrentTime()}: Removed file at {destination}")
+            
+            destination_seg = self.storeSegmentation(img_blob, segmentationFileName, self.temp_dir.name)
+            print(destination_seg)
+            self.displaySegmention(destination_seg)
+            os.remove(destination_seg)
+            logging.info(f"{self.getCurrentTime()}: Removed file at {destination_seg}")
+
+            landmarkFileName = f'{segmentationFileName.split("_")[0]}_OSTIUM.mrk.json'
+            img_blob = self.imageDataController.requestPointList(landmarkFileName, tag)
+            destination_point = self.storeSegmentation(img_blob, landmarkFileName, self.temp_dir.name)
+            print(destination_point)
+            self.displayLandmarks(destination_point)
+            os.remove(destination_point)
+            logging.info(f"{self.getCurrentTime()}: Removed file at {destination_point}")
+
+    # def storePointList(self, response: requests.models.Response, segmentationFileName: str, tempDirectory: str
+    # ) -> str:
+    #     landmark = response.content
+    #     destination = self.getPathToStore(segmentationFileName, tempDirectory)
+    #     with open(destination, "wb") as img_file:
+    #         img_file.write(landmark)
+    #     logging.info(f"{self.getCurrentTime()}: Image segmentation is stored temoparily in: {destination}")
+    #     return destination
 
     def storeSegmentation(
         self, response: requests.models.Response, segmentationFileName: str, tempDirectory: str
@@ -1693,13 +1741,18 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
             response (requests.models.Response): contains segmentation data
             image_id (str): image id of segmentation
         """
+        print(response)
+        print(segmentationFileName)
+        print(tempDirectory)
+        print('--------')
+        segment = requests.models.Response.content
         segmentation = response.content
         destination = self.getPathToStore(segmentationFileName, tempDirectory)
         with open(destination, "wb") as img_file:
             img_file.write(segmentation)
         logging.info(f"{self.getCurrentTime()}: Image segmentation is stored temoparily in: {destination}")
         return destination
-
+    
     def getPathToStore(self, segmentationFileName: str, tempDirectory: str) -> str:
         return tempDirectory + "/" + segmentationFileName
 
@@ -1708,6 +1761,17 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
         Displays the segmentation in slicer window
         """
         segmentation = slicer.util.loadSegmentation(destination)
+        print(segmentation)
+        displayNodeID = segmentation.GetDisplayNodeID()
+        scene = segmentation.GetScene()
+        displayNode = scene.GetNodeByID(displayNodeID)
+        displayNode.SetOpacity2DFill(0)
+        displayNode.SetOpacity2DOutline(1)
+
+        segmentation.CreateClosedSurfaceRepresentation()
+
+    def displayLandmarks(self, destination: str):
+        landmarks = slicer.util.loadMarkups(destination)
 
     def requestDicomImage(self, image_id: str, image_name: str, node_name: str):
         download_uri = self.imageDataController.getDicomDownloadUri(image_id)
