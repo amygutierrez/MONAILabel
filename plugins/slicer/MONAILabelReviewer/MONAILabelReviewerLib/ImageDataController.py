@@ -238,6 +238,7 @@ class ImageDataController:
         print(image_id)
         print(tag)
         img_blob = self.monaiServerREST.requestPointList(image_id, tag)
+        print(img_blob)
         logging.info(
             "{}: Segmentation successfully requested from MONAIServer (image id: {})".format(
                 self.getCurrentTime(), image_id

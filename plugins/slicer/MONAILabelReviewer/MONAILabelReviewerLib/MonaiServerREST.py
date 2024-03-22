@@ -60,7 +60,7 @@ class MonaiServerREST:
     def requestPointList(self, image_id: str, tag: str) -> requests.models.Response:
         # if tag == "":
         print(tag)
-        tag = "landmarks"
+        #tag = "landmarks"
         download_uri = f"{self.serverUrl}/datastore/label?label={quote_plus(image_id)}&tag={quote_plus(tag)}"
         print(f'point list download_uri: {download_uri}')
         logging.info(f"{self.getCurrentTime()}: REST: request segmentation '{download_uri}'")

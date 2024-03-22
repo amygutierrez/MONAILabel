@@ -1713,11 +1713,14 @@ class MONAILabelReviewerLogic(ScriptedLoadableModuleLogic):
             print(destination_seg)
             self.displaySegmention(destination_seg)
             os.remove(destination_seg)
+            print(f'after removal {destination_seg}')
             logging.info(f"{self.getCurrentTime()}: Removed file at {destination_seg}")
 
             landmarkFileName = f'{segmentationFileName.split("_")[0]}_OSTIUM.mrk.json'
-            print(f'landmark file name: {segmentationFileName}')
-            img_blob = self.imageDataController.requestPointList(landmarkFileName, tag)
+            landmark_id = f'{segmentationFileName.split("_")[0]}_OSTIUM'
+            print(f'landmark id: {landmark_id}')
+            tag = 'landmarks'
+            img_blob = self.imageDataController.requestPointList(landmark_id, tag)
             print(f'landmark temp dir: {self.temp_dir.name}')
             destination_point = self.storeSegmentation(img_blob, landmarkFileName, self.temp_dir.name)
             print(destination_point)
